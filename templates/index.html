@@ -15,6 +15,7 @@
 
         .navbar {
             margin-bottom: 20px;
+            background-color:rgb(98, 95, 95);  
         }
 
         .card {
@@ -40,7 +41,7 @@
             top: 0; /* Anchors headers at the top */
             z-index: 1020; /* Ensures headers stay above table rows */
             background-color: #007bff; /* Header background color */
-            color: white; /* White text for better contrast */
+            color: black; /* White text for better contrast */
             text-align: center;
             font-weight: bold;
         }
@@ -64,19 +65,26 @@
         #traffic-chart {
             height: 400px;
         }
+        .btn{
+            background-color:black;
+            color: white;   
+            border-radius:15px;
+        }
+
+     
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light --bs-secondary-color text-white">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">Intrusion Detection Dashboard</a>
+            <a class="navbar-brand text-white" href="#">Intrusion Detection Dashboard</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link btn btn-outline-danger" href="/logout">Logout</a>
+                        <a class="nav-link btn btn-outline-danger" href="/logout"><button class="btn">Logout</button></a>
                     </li>
                 </ul>
             </div>
