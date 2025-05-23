@@ -106,6 +106,12 @@ def set_threshold():
     return jsonify({"status": "error", "message": "Invalid threshold value"}), 400
 
 
+
+@app.route('/get_threshold')
+def get_threshold():
+    """Return the current anomaly detection threshold."""
+    return jsonify({"threshold": anomaly_threshold})
+
 def detect_anomalies(data):
     """Detect anomalies based on the dynamic threshold."""
     global anomaly_threshold

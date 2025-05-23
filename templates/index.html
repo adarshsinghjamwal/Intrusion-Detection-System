@@ -32,18 +32,41 @@
         }
 
         .table-container {
-            max-height: 300px; /* Limits height for scrolling */
-            overflow-y: auto; /* Adds vertical scroll */
+            max-height: 500px;
+            overflow-y: auto;
+            overflow-x: auto;
         }
 
-        th {
-            position: sticky; /* Keeps table headers visible when scrolling */
-            top: 0; /* Anchors headers at the top */
-            z-index: 1020; /* Ensures headers stay above table rows */
-            background-color: #007bff; /* Header background color */
-            color: black; /* White text for better contrast */
+        .table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            position: sticky;
+            top: 0;
+            background-color: #007bff;
+            z-index: 2;
+        }
+
+        .table thead th {
             text-align: center;
-            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: black;
+            background-color:rgb(71, 173, 199);
+            padding: 10px;
+        }
+
+        .table tbody td {
+            background-color: white;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 10px;
         }
 
         .alert-section {
@@ -70,8 +93,11 @@
             color: white;   
             border-radius:15px;
         }
-
-     
+        .table-container tbody::after {
+            content: '';
+            display: block;
+            height: 10px; /* buffer space to prevent overlap at scroll bottom */
+        }
     </style>
 </head>
 <body>
@@ -188,26 +214,75 @@
 
         async function drawTrafficChart() {
             try {
-                const response = await fetch('/get_traffic_stats');
-                const stats = await response.json();
+                const [statsRes, alertsRes, thresholdRes] = await Promise.all([
+                    fetch('/get_traffic_stats'),
+                    fetch('/get_alerts'),
+                    fetch('/get_threshold')
+                ]);
 
-                const trace = {
-                    x: stats.timestamps.map(ts => new Date(ts * 1000)),
-                    y: stats.sizes,
+                const stats = await statsRes.json();
+                const alerts = await alertsRes.json();
+                const thresholdData = await thresholdRes.json();
+                const threshold = thresholdData.threshold;
+
+                const x = stats.timestamps.map(ts => new Date(ts * 1000));
+                const y = stats.sizes;
+
+                // Trace for total traffic volume as filled area
+                const volumeTrace = {
+                    x: x,
+                    y: y,
                     type: 'scatter',
-                    mode: 'lines+markers',
-                    marker: { size: 8, color: '#007bff' }
+                    mode: 'lines',
+                    fill: 'tozeroy',
+                    name: 'Traffic Volume',
+                    line: { color: '#007bff' }
+                };
+
+                // Trace for alerts as red markers on the same x axis
+                // We'll plot only the packet sizes above the threshold as alerts
+                const alertX = [];
+                const alertY = [];
+
+                for (let i = 0; i < y.length; i++) {
+                    if (y[i] > threshold) {
+                        alertX.push(x[i]);
+                        alertY.push(y[i]);
+                    }
+                }
+
+                const alertTrace = {
+                    x: alertX,
+                    y: alertY,
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: 'Alerts',
+                    marker: {
+                        color: 'red',
+                        size: 10,
+                        symbol: 'circle-open'
+                    }
                 };
 
                 const layout = {
-                    title: 'Traffic Volume Over Time',
-                    xaxis: { title: 'Time' },
-                    yaxis: { title: 'Packet Size (bytes)' }
+                    title: 'Traffic Volume with Alerts',
+                    xaxis: {
+                        title: 'Time',
+                        showgrid: false
+                    },
+                    yaxis: {
+                        title: 'Packet Size (bytes)',
+                        zeroline: false,
+                        range: [0, 5000]
+                    },
+                    legend: { orientation: 'h', y: -0.2 },
+                    margin: { t: 40, b: 80 },
+                    height: 600
                 };
 
-                Plotly.newPlot('traffic-chart', [trace], layout);
+                Plotly.newPlot('traffic-chart', [volumeTrace, alertTrace], layout);
             } catch (error) {
-                console.error('Error fetching traffic stats:', error);
+                console.error('Error fetching traffic stats or alerts:', error);
             }
         }
 
