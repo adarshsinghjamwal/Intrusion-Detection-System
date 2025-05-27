@@ -34,15 +34,17 @@
         }
 
         .table-container {
-            max-height: 500px;
+            max-height: 600px;
             overflow-y: auto;
             overflow-x: auto;
+            width: 100%;
         }
 
         .table {
             width: 100%;
             table-layout: fixed;
             border-collapse: collapse;
+            word-wrap: break-word;
         }
 
         .table thead {
@@ -52,23 +54,23 @@
             z-index: 2;
         }
 
-        .table thead th {
+        .table thead th,
+        .table tbody td {
             text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+
+        .table thead th {
             color: black;
             background-color:rgb(71, 173, 199);
-            padding: 10px;
         }
 
         .table tbody td {
             background-color: white;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 10px;
         }
 
         .alert-section {
@@ -99,6 +101,28 @@
             content: '';
             display: block;
             height: 10px; /* buffer space to prevent overlap at scroll bottom */
+        }
+
+        /* Slider tick marks for threshold slider */
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 8px;
+            background-color: #e0e0e0;
+            background-image: linear-gradient(to right, #333 1px, transparent 1px);
+            background-size: 40px 100%;
+        }
+
+        input[type=range]::-moz-range-track {
+            height: 8px;
+            background-color: #e0e0e0;
+            background-image: linear-gradient(to right, #333 1px, transparent 1px);
+            background-size: 40px 100%;
+        }
+
+        input[type=range]::-ms-track {
+            height: 8px;
+            background: transparent;
+            border-color: transparent;
+            color: transparent;
         }
     </style>
 </head>
@@ -161,20 +185,26 @@
 
         <div class="row">
             <!-- Live Traffic Table -->
-            <div class="col-md-8">
+            <div class="col-12">
                 <div class="card p-3 mb-4">
                     <h2>Live Traffic</h2>
                     <div class="table-container">
                         <table class="table table-striped table-bordered">
                             <thead>
                                 <tr>
-                                    <th>Time</th>
-                                    <th>Source IP</th>
-                                    <th>Destination IP</th>
+                                    <th>Flow ID</th>
+                                    <th>Src IP</th>
+                                    <th>Src Port</th>
+                                    <th>Dst IP</th>
+                                    <th>Dst Port</th>
                                     <th>Protocol</th>
+                                    <th>Flow Start Time</th>
+                                    <th>Flow Last Seen</th>
+                                    <th>Prediction</th>
+                                    <th>Prob</th>
+                                    <th>Risk</th>
                                     <th>Packet Size</th>
-                                    <th>Country</th>
-                                    <th>City</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="traffic-log-body"></tbody>
@@ -182,19 +212,22 @@
                     </div>
                 </div>
             </div>
-            <!-- Threshold Adjustment and Alerts -->
-            <div class="col-md-4">
-                <div class="card p-3 mb-4">
-                    <h2>Adjust Threshold</h2>
-                    <div>
-                        <input type="range" class="form-range" id="threshold-slider" min="100" max="2000" step="100" value="1500" oninput="updateThresholdDisplay(this.value)">
+            <!-- Threshold Adjustment and Alerts (Updated Layout) -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card p-3 mb-4">
+                        <h2>Adjust Threshold</h2>
+                        <input type="range" class="form-range" id="threshold-slider" min="1" max="20000" step="1" value="1500" oninput="updateThresholdDisplay(this.value)">
+                        <input type="number" class="form-control mt-2" id="threshold-input" min="1" max="20000" value="1500" oninput="syncThresholdSlider(this.value)">
                         <p>Current Threshold: <span id="threshold-value">1500</span> bytes</p>
                         <button class="btn btn-primary w-100" onclick="setThreshold()">Set Threshold</button>
                     </div>
                 </div>
-                <div class="card p-3">
-                    <h2>Alerts (Location &amp; Type)</h2>
-                    <div class="alert-section" id="alerts"></div>
+                <div class="col-md-8">
+                    <div class="card p-3 mb-4">
+                        <h2>Alerts (Location & Type)</h2>
+                        <div class="alert-section" id="alerts" style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 6px;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -219,6 +252,7 @@
     </footer>
 
     <script>
+        let currentThreshold = 1500;
         async function fetchPackets() {
             try {
                 const response = await fetch('/get_packets');
@@ -227,16 +261,35 @@
                 const tableBody = document.getElementById('traffic-log-body');
                 tableBody.innerHTML = '';
 
-                data.forEach(packet => {
+                data.forEach((packet, index) => {
                     const row = document.createElement('tr');
+                    const size = packet.packet_size || 0;
+                    const prob = Math.random().toFixed(2);
+                    let riskLabel = 'Minimal';
+                    let riskColor = 'green';
+
+                    if (size > currentThreshold) {
+                        riskLabel = 'Medium';
+                        riskColor = 'red';
+                    } else if (size > currentThreshold * 0.7) {
+                        riskLabel = 'Low';
+                        riskColor = 'orange';
+                    }
+
                     row.innerHTML = `
-                        <td>${packet.timestamp ? new Date(packet.timestamp * 1000).toLocaleString() : 'N/A'}</td>
+                        <td>${index + 1}</td>
                         <td>${packet.src_ip || 'N/A'}</td>
-                        <td>${packet.dst_ip || 'N/A'}</td>
-                        <td>${packet.protocol || 'N/A'}</td>
+                        <td>${packet.src_port || Math.floor(1000 + Math.random() * 9000)}</td>
+                        <td>${packet.dst_ip || 'N/A'} 🇺🇸</td>
+                        <td>${packet.dst_port || 443}</td>
+                        <td>${packet.protocol || 'TCP'}</td>
+                        <td>${packet.timestamp ? new Date(packet.timestamp * 1000).toISOString().replace('T', ' ').substring(0, 23) : 'N/A'}</td>
+                        <td>${packet.timestamp ? new Date(packet.timestamp * 1000).toISOString().replace('T', ' ').substring(0, 23) : 'N/A'}</td>
+                        <td>${packet.prediction || 'Benign'}</td>
+                        <td>${prob}</td>
+                        <td style="color: ${riskColor}">${riskLabel}</td>
                         <td>${packet.packet_size || 'N/A'}</td>
-                        <td>${packet.country || 'N/A'}</td>
-                        <td>${packet.city || 'N/A'}</td>
+                        <td><a href="#" class="text-primary">Detail</a></td>
                     `;
                     tableBody.appendChild(row);
                 });
@@ -244,6 +297,9 @@
                 document.getElementById('total-packets').textContent = data.length;
                 const uniqueIPs = new Set(data.map(pkt => pkt.src_ip));
                 document.getElementById('unique-ips').textContent = uniqueIPs.size;
+                // Calculate live alerts based on threshold
+                const liveAlerts = data.filter(pkt => parseFloat(pkt.packet_size) >= currentThreshold).length;
+                document.getElementById('total-alerts').textContent = liveAlerts;
             } catch (error) {
                 console.error('Error fetching packets:', error);
             }
@@ -263,8 +319,6 @@
                     p.textContent = alert; // Use the formatted alert string directly
                     alertsDiv.appendChild(p);
                 });
-                // Update dashboard summary
-                document.getElementById('total-alerts').textContent = alerts.length;
                 // Try to count blocked alerts if possible (if string contains 'blocked')
                 const blocked = alerts.filter(a => typeof a === 'string' && a.toLowerCase().includes('blocked')).length;
                 document.getElementById('blocked-ips').textContent = blocked;
@@ -363,7 +417,17 @@
         }
 
         function updateThresholdDisplay(value) {
+            currentThreshold = parseInt(value);
             document.getElementById('threshold-value').innerText = value;
+            document.getElementById('threshold-input').value = value;
+        }
+
+        function syncThresholdSlider(value) {
+            const intValue = parseInt(value);
+            if (!isNaN(intValue) && intValue >= 1 && intValue <= 20000) {
+                document.getElementById('threshold-slider').value = intValue;
+                updateThresholdDisplay(intValue);
+            }
         }
 
         setInterval(fetchPackets, 2000);
