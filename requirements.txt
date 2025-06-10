@@ -4,3 +4,6 @@ pandas
 numpy
 scikit-learn
 matplotlib
+plotly
+flask-cors
+gunicorn
